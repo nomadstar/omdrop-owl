@@ -19,6 +19,7 @@
 , iw
 , networkmanager
 , procps
+, systemd
 , util-linux
 }:
 
@@ -100,6 +101,7 @@ let
     iw
     networkmanager
     procps
+    systemd
     util-linux
     pythonEnv
   ];
@@ -111,7 +113,23 @@ stdenv.mkDerivation (finalAttrs: {
 
   src = ./.;
 
-  nativeBuildInputs = [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper pythonEnv ];
+
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+    # Exercise files both as executables and through the interpreter used by
+    # the supervisor/sender, including imports of the sibling modules.
+    for script in airdrop-send.py awdl-airdrop-adv.py ble-airdrop-adv.py; do
+      "$out/lib/omdrop/$script" --help >/dev/null
+      ${pythonEnv}/bin/python3 "$out/lib/omdrop/$script" --help >/dev/null
+    done
+    "$out/bin/send-to-peer" --help >/dev/null
+    PYTHONPATH="$out/lib/omdrop" ${pythonEnv}/bin/python3 -c \
+      'import awdl_identity, awdl_debug, dbus, gi, PIL, libarchive, zeroconf, ifaddr'
+    "$out/bin/omdrop-discoverable" status --json
+    runHook postInstallCheck
+  '';
 
   installPhase = ''
     runHook preInstall
@@ -144,10 +162,8 @@ stdenv.mkDerivation (finalAttrs: {
     wrapProgram "$libdir/send-to-peer" \
       --prefix PATH : "${lib.makeBinPath runtimeDeps}"
 
-    for py in "$libdir"/*.py; do
-      wrapProgram "$py" \
-        --prefix PATH : "${lib.makeBinPath runtimeDeps}"
-    done
+    # Keep Python files as Python: callers use python3 file.py and import
+    # awdl_identity/awdl_debug. Shell wrappers break both entry points.
 
     # Link main executables into bin/
     ln -s "$libdir/omdrop-discoverable" "$out/bin/omdrop-discoverable"
@@ -157,6 +173,10 @@ stdenv.mkDerivation (finalAttrs: {
     # Polkit policy (annotate both canonical store path and /usr/lib fallback)
     substitute packaging/omdrop-owl.policy "$out/share/polkit-1/actions/io.github.t4t5.omdrop-owl.policy" \
       --replace-fail "/usr/lib/omdrop/omdrop-discoverable" "$libdir/omdrop-discoverable"
+
+    # pkexec matches the invoked path, including the legacy path used by omdrop.
+    substitute packaging/omdrop-owl.policy "$out/share/polkit-1/actions/io.github.t4t5.omdrop-owl-usr.policy" \
+      --replace-fail 'id="io.github.t4t5.omdrop-owl.discover"' 'id="io.github.t4t5.omdrop-owl.discover-usr"'
 
     # Also install NetworkManager config
     cp packaging/99-omdrop-owl-unmanaged.conf "$out/lib/NetworkManager/conf.d/99-omdrop-owl-unmanaged.conf"

@@ -16,6 +16,10 @@
         omdrop-owl = pkgs.callPackage ./package.nix { };
       });
 
+      checks = forAllSystems (pkgs: {
+        package = pkgs.callPackage ./package.nix { };
+      });
+
       overlays.default = final: prev: {
         omdrop-owl = final.callPackage ./package.nix { };
       };

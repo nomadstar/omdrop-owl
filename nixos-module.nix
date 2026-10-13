@@ -17,6 +17,7 @@ in
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ omdropPkg ];
+    security.polkit.enable = true;
 
     # Configure NetworkManager to leave AWDL interfaces unmanaged
     networking.networkmanager.unmanaged = [
@@ -30,15 +31,7 @@ in
       "L+ /usr/lib/omdrop - - - - ${omdropPkg}/lib/omdrop"
     ];
 
-    # Polkit authorization: allow active local users to control AirDrop discoverability
-    security.polkit.extraConfig = ''
-      polkit.addRule(function(action, subject) {
-        if ((action.id == "io.github.t4t5.omdrop-owl.discover" ||
-             action.id == "io.github.t4t5.omdrop-owl.discover-usr") &&
-            subject.active) {
-          return polkit.Result.YES;
-        }
-      });
-    '';
+    # The packaged policies authorize active local sessions and require
+    # administrator authentication for remote or inactive sessions.
   };
 }

@@ -35,6 +35,47 @@ unmanaged. It conflicts with `brcmfmac-awdl-dkms`: one radio backend at a time.
 
 </details>
 
+### NixOS
+
+Add this flake as an input to your system flake:
+
+```nix
+inputs.omdrop-owl = {
+  url = "github:nomadstar/omdrop-owl";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
+Include its module in your `nixosSystem.modules`:
+
+```nix
+omdrop-owl.nixosModules.default
+{ services.omdrop-owl.enable = true; }
+```
+
+The module installs the backend, enables Polkit, leaves the AWDL interfaces
+unmanaged by NetworkManager, and provides `/usr/lib/omdrop` for clients.
+It installs the radio backend only; install the omdrop client separately.
+
+To build and inspect a checkout before activating it:
+
+```sh
+nix build
+./result/bin/omdrop-discoverable probe --json
+```
+
+To use the checkout with an existing system flake (replace the path and host):
+
+```sh
+sudo nixos-rebuild switch --flake /path/to/nixos-config#host \
+  --override-input omdrop-owl path:/path/to/omdrop-owl
+```
+
+Intel cards use exclusive mode: discoverability temporarily disconnects Wi-Fi
+and `stop` restores it. A successful `probe` checks the driver profile and
+installation; a transfer with an Apple device is still needed to validate a
+particular card, including the Intel AC 3168.
+
 Then install omdrop (0.16.0 or newer):
 
 ```sh
