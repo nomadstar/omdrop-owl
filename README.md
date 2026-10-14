@@ -100,6 +100,7 @@ and turn it on from the bar.
 | Realtek RTL8822BE | `rtw88_8822be` | ✅ Exclusive; shared untested | Crosshair VII Hero, `10ec:b822`, NixOS 26.11 (kernel 7.2.9) |
 | MediaTek MT7921 | `mt7921e` | ❌ Exclusive ([#14](https://github.com/t4t5/omdrop-owl/issues/14)); shared untested | `14c3:7961`, CachyOS (kernel 7.2.9) |
 | Intel AX210 | `iwlwifi` | ❓ Exclusive untested | — |
+| Intel AC 3168 | `iwlwifi` | ❌ Exclusive: firmware crash during IBSS startup | `8086:24fb`, NixOS 26.05, kernel 6.18.56, firmware `29.0bd893f3.0 3168-29.ucode` |
 | Intel BE200 | `iwlwifi` | ❓ Exclusive untested | — |
 | Intel 9260 / 9560 | `iwlwifi` | ❓ Exclusive untested | — |
 | MediaTek MT7922 (RZ616) | `mt7921e` | ❓ Untested (opt-in) | — |
@@ -182,6 +183,13 @@ NetworkManager manages OWL's interfaces and the phone never shows up.
 
 ## Known issues
 
+- **Intel AC 3168 failed exclusive-mode startup on the configuration above.**
+  The firmware asserted with `0x0000102C` / `data1=0x20A`, the driver reprobed
+  the device and removed `mon0`, and OWL exited with `Could not get link: No such
+  device`. Wi-Fi reconnected afterward. `probe` still reports ready because
+  the driver-wide `iwlwifi` profile is marked tested; this is not a per-card
+  compatibility check. A [similar report for the Intel 7265](https://github.com/t4t5/omdrop-owl/issues/16)
+  has the same assert codes, but the cause on the 3168 has not been established.
 - **Shared mode needs your AP on channel 6, 44 or 149.** On any other channel,
   `start` refuses and says so.
 - **The MT7925 drops off Wi-Fi when the monitor interface is removed** (an
